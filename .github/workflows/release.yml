@@ -1,18 +1,53 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
-  release:
+  verify-publishing-identity:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Marketplace identity ID (no publishing)
+        run: |
+          identity_id=$(az rest \
+            --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --query id --output tsv)
+          if [ -z "$identity_id" ]; then
+            echo "::error::未获取到 Marketplace 身份 ID"
+            exit 1
+          fi
+          echo "Marketplace identity ID: $identity_id"
+          echo "Marketplace identity ID: $identity_id" >> "$GITHUB_STEP_SUMMARY"
+          echo "请将此 ID 添加为 potato0620 发布者的 Contributor 成员。此任务不会发布扩展。" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: marketplace
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -20,22 +55,52 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate extension
+        run: |
+          pnpm exec tsc --noEmit
+          pnpm test
 
       - name: Sync version from tag
         env:
           VERSION: ${{ github.ref_name }}
-        run: npm version "${VERSION#v}" --no-git-tag-version
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
 
       - run: pnpm vsix
 
-      - name: Publish to Marketplace
+      - name: Save VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: potato-ai-commit-${{ github.ref_name }}
+          path: '*.vsix'
+          if-no-files-found: error
+
+      - name: Check publishing configuration
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: pnpm vsce publish --skip-duplicate
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::请在 GitHub marketplace 环境中配置变量 $name"
+              exit 1
+            fi
+          done
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish to Marketplace
+        run: pnpm exec vsce publish --azure-credential --packagePath *.vsix --skip-duplicate
 
       - name: Generate Changelog
         id: changelog
