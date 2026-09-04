@@ -2,7 +2,7 @@
   "name": "potato-ai-commit",
   "displayName": "Potato AI Commit",
   "description": "根据 staged 文件通过 AI 生成提交信息",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "potato0620",
   "engines": {
     "vscode": "^1.85.0"

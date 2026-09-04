@@ -102,9 +102,13 @@ export function activate(context: vscode.ExtensionContext) {
                 title: '正在生成 commit message...',
             },
             async () => {
+                const gitStartedAt = performance.now();
                 const rawDiff = await repo.diff(true);
+                const gitElapsed = Math.round(performance.now() - gitStartedAt);
+                const processStartedAt = performance.now();
                 const fileChanges = toFileChanges(repo.state.indexChanges);
                 const diff = processDiff(rawDiff, fileChanges);
+                const processElapsed = Math.round(performance.now() - processStartedAt);
                 if (!diff.trim()) {
                     throw new Error('无法读取暂存区变更，请确认文件已暂存后重试');
                 }
@@ -113,7 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
                 } else {
                     log(`原始 diff 长度: ${rawDiff.length} 字符`);
                 }
-                log(`处理后 diff 长度: ${diff.length} 字符`);
+                log(`准备输入: Git=${gitElapsed}ms, 处理=${processElapsed}ms, 原始=${rawDiff.length} 字符, 发送=${diff.length} 字符`);
 
                 const message = await generateCommitMessage(config, diff, log);
                 log(`生成成功: ${message}`);

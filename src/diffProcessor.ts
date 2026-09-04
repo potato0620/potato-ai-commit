@@ -17,6 +17,11 @@ const STATUS_LABELS: Record<FileChange['status'], string> = {
     copied: '复制',
 };
 
+const MAX_SUMMARY_BUDGET = 4_000;
+const MAX_DIFF_BUDGET = 8_000;
+const TRUNCATION_MARKER = '... (详细 diff 已按文件均衡截断，请结合文件清单生成)';
+const LOW_VALUE_DETAIL_PATTERN = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb?|[^/]+\.min\.(?:js|css)|[^/]+\.map)$/i;
+
 export function parseDiffChunks(rawDiff: string): DiffChunk[] {
     const trimmed = rawDiff.trim();
     if (!trimmed) {
@@ -54,12 +59,12 @@ export function parseDiffChunks(rawDiff: string): DiffChunk[] {
     return chunks;
 }
 
-export function buildFileSummary(changes: readonly FileChange[]): string {
+export function buildFileSummary(changes: readonly FileChange[], budget = MAX_SUMMARY_BUDGET): string {
     if (changes.length === 0) {
         return '';
     }
 
-    return changes.map(c => {
+    const lines = changes.map(c => {
         const label = STATUS_LABELS[c.status];
         if (c.status === 'renamed' && c.oldPath) {
             return `[${label}] ${c.oldPath} → ${c.path}`;
@@ -68,7 +73,22 @@ export function buildFileSummary(changes: readonly FileChange[]): string {
             return `[${label}] ${c.oldPath} → ${c.path}`;
         }
         return `[${label}] ${c.path}`;
-    }).join('\n');
+    });
+
+    const included: string[] = [];
+    let length = 0;
+    for (const line of lines) {
+        const addedLength = (included.length ? 1 : 0) + line.length;
+        if (length + addedLength > budget) break;
+        included.push(line);
+        length += addedLength;
+    }
+
+    const omitted = lines.length - included.length;
+    if (omitted > 0) {
+        included.push(`... 另有 ${omitted} 个文件未列出`);
+    }
+    return included.join('\n');
 }
 
 export function processChunk(chunk: DiffChunk, status: FileChange['status']): string {
@@ -80,6 +100,10 @@ export function processChunk(chunk: DiffChunk, status: FileChange['status']): st
     if (isDeletionChunk(chunk.content)) {
         const lineCount = countRemovedLines(chunk.content);
         return `[删除] ${chunk.filePath} (共 ${lineCount} 行)`;
+    }
+
+    if (LOW_VALUE_DETAIL_PATTERN.test(chunk.filePath)) {
+        return `[${STATUS_LABELS[status]}] ${chunk.filePath}（省略生成文件的详细 diff）`;
     }
 
     return chunk.content;
@@ -109,32 +133,23 @@ export function smartTruncate(chunks: string[], budget: number): TruncateResult 
         return { content: '', truncated: false };
     }
 
-    const included: string[] = [];
-    let totalLength = 0;
-    let truncated = false;
-
-    for (const chunk of chunks) {
-        const separator = included.length > 0 ? '\n\n' : '';
-        const addedLength = separator.length + chunk.length;
-
-        if (totalLength + addedLength <= budget) {
-            included.push(chunk);
-            totalLength += addedLength;
-        } else {
-            truncated = true;
-            break;
-        }
+    const joined = chunks.join('\n\n');
+    if (joined.length <= budget) {
+        return { content: joined, truncated: false };
+    }
+    if (budget <= TRUNCATION_MARKER.length) {
+        return { content: TRUNCATION_MARKER.slice(0, Math.max(0, budget)), truncated: true };
     }
 
-    let content = included.join('\n\n');
-    if (truncated) {
-        content += '\n\n... (部分文件的详细 diff 已省略，请根据文件清单生成)';
-    }
+    // 将预算均分给每个文件，避免排在前面的大文件吞掉全部上下文。
+    const separatorsLength = Math.max(0, chunks.length - 1) * 2;
+    const contentBudget = Math.max(0, budget - TRUNCATION_MARKER.length - 2 - separatorsLength);
+    const perChunkBudget = Math.max(1, Math.floor(contentBudget / chunks.length));
+    const included = chunks.map(chunk => chunk.slice(0, perChunkBudget));
+    const content = `${included.join('\n\n')}\n\n${TRUNCATION_MARKER}`;
 
-    return { content, truncated };
+    return { content, truncated: true };
 }
-
-const MAX_DIFF_BUDGET = 10_000;
 
 export function processDiff(rawDiff: string, changes: readonly FileChange[]): string {
     const summary = buildFileSummary(changes);

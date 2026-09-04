@@ -48,6 +48,31 @@ describe('generateCommitMessage', () => {
         expect(JSON.parse(fetchMock.mock.calls[0][1].body).stream).toBe(false);
     });
 
+    it('DeepSeek V4 Flash 默认关闭思考模式以缩短等待', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'fix: 缩短生成等待' } }],
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        await generateCommitMessage({ ...config, model: 'deepseek-v4-flash' }, 'diff', vi.fn());
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.thinking).toEqual({ type: 'disabled' });
+    });
+
+    it('保留用户显式设置的 DeepSeek 思考模式', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'feat: 生成提交信息' } }],
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        await generateCommitMessage({
+            ...config,
+            model: 'deepseek-v4-flash',
+            extraBody: { thinking: { type: 'enabled' }, reasoning_effort: 'low' },
+        }, 'diff', vi.fn());
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.thinking).toEqual({ type: 'enabled' });
+        expect(body.reasoning_effort).toBe('low');
+    });
+
     it('HTTP 错误包含状态码和服务端原因', async () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({
             error: { message: 'Invalid API key' },

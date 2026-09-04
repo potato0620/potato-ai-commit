@@ -52,6 +52,17 @@ function describeApiError(status: number, body: string): string {
     return `API 请求失败 (${status})${detail ? `: ${detail}` : ''}`;
 }
 
+function getProviderDefaults(config: Config): Record<string, unknown> {
+    const isDeepSeekV4 = /^deepseek-v4-(?:flash|pro)(?:-|$)/i.test(config.model);
+    const hasThinkingSetting = Object.prototype.hasOwnProperty.call(config.extraBody, 'thinking')
+        || Object.prototype.hasOwnProperty.call(config.extraBody, 'reasoning_effort');
+
+    // DeepSeek V4 默认使用 high 思考模式。提交信息是短文本任务，默认关闭可显著减少等待。
+    return isDeepSeekV4 && !hasThinkingSetting
+        ? { thinking: { type: 'disabled' } }
+        : {};
+}
+
 async function chatCompletion(
     config: Config,
     systemPrompt: string,
@@ -71,6 +82,7 @@ async function chatCompletion(
 
     try {
         log(`请求 API: ${url}`);
+        const startedAt = performance.now();
 
         const response = await fetch(url, {
             method: 'POST',
@@ -80,6 +92,7 @@ async function chatCompletion(
             },
             body: JSON.stringify({
                 ...config.extraBody,
+                ...getProviderDefaults(config),
                 ...(config.maxTokens > 0 ? { max_tokens: config.maxTokens } : {}),
                 model: config.model,
                 stream: false,
@@ -91,14 +104,25 @@ async function chatCompletion(
             signal: controller.signal,
         });
 
-        log(`API 响应状态: ${response.status}`);
+        log(`API 已响应: status=${response.status}, 首字节=${Math.round(performance.now() - startedAt)}ms`);
 
+        const responseText = await response.text();
         if (!response.ok) {
-            const text = await response.text();
-            throw new Error(describeApiError(response.status, text));
+            throw new Error(describeApiError(response.status, responseText));
         }
 
-        const data = await response.json();
+        let data: unknown;
+        try {
+            data = JSON.parse(responseText);
+        } catch {
+            throw new Error(`API 返回了无效 JSON：${responseText.slice(0, 500)}`);
+        }
+        const elapsed = Math.round(performance.now() - startedAt);
+        const usage = (data as Record<string, any>)?.usage;
+        const usageText = usage
+            ? `, 输入=${usage.prompt_tokens ?? usage.input_tokens ?? '?'} tokens, 输出=${usage.completion_tokens ?? usage.output_tokens ?? '?'} tokens`
+            : '';
+        log(`API 响应完成: 总耗时=${elapsed}ms${usageText}`);
         const content = extractMessageContent(data);
         if (!content) {
             const responsePreview = JSON.stringify(data).slice(0, 2_000);

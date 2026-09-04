@@ -181,9 +181,15 @@ describe('smartTruncate', () => {
         ];
         const result = smartTruncate(chunks, 10000);
         expect(result.truncated).toBe(true);
-        expect(result.content).toContain('a'.repeat(6000));
-        expect(result.content).not.toContain('b'.repeat(6000));
-        expect(result.content).toContain('部分文件的详细 diff 已省略');
+        expect(result.content).toContain('a'.repeat(4000));
+        expect(result.content).toContain('b'.repeat(4000));
+        expect(result.content).toContain('详细 diff 已按文件均衡截断');
+        expect(result.content.length).toBeLessThanOrEqual(10000);
+    });
+
+    it('首个大文件不会挤掉后续文件', () => {
+        const result = smartTruncate(['a'.repeat(20_000), 'important-change'], 1_000);
+        expect(result.content).toContain('important-change');
     });
 
     it('空 chunks 应返回空', () => {
@@ -242,6 +248,24 @@ index abc..000
         expect(result).toContain('[二进制文件 新增]: assets/logo.png');
         expect(result).toContain('[删除] src/old.ts (共 3 行)');
         expect(result).not.toContain('Binary files /dev/null');
+    });
+
+    it('锁文件只保留变更摘要', () => {
+        const chunk: DiffChunk = {
+            filePath: 'pnpm-lock.yaml',
+            content: `diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml\n-old\n+new`,
+        };
+        expect(processChunk(chunk, 'modified')).toContain('省略生成文件的详细 diff');
+    });
+
+    it('大量文件清单会受长度预算限制', () => {
+        const changes: FileChange[] = Array.from({ length: 1_000 }, (_, index) => ({
+            path: `src/components/very-long-component-name-${index}.ts`,
+            status: 'modified',
+        }));
+        const result = buildFileSummary(changes);
+        expect(result).toContain('个文件未列出');
+        expect(result.length).toBeLessThan(4_100);
     });
 
     it('空 diff 应返回仅含文件清单', () => {

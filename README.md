@@ -52,6 +52,8 @@
 - 超时：检查 API 服务是否可用，较慢的模型可调大 `requestTimeout`。
 - 空响应：检查模型名称和 `maxTokens`；推理模型需要为最终答案保留足够的 token。
 - `extraBody`：必须是有效的 JSON 对象。扩展固定使用非流式响应（`stream: false`）。
+- `deepseek-v4-flash` / `deepseek-v4-pro`：未显式配置时自动关闭思考模式，以缩短生成提交信息的等待时间。如需开启，可在 `extraBody` 中填写 `{ "thinking": { "type": "enabled" }, "reasoning_effort": "low" }`。
+- 日志会分别显示 Git diff、输入处理、API 首字节和完整响应耗时，可用来判断瓶颈位于本地还是 API 服务。
 
 失败时会保留输入框原有内容；暂存区只有文件变更清单而没有文本 diff 时，也会尝试生成。
 
