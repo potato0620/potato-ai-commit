@@ -20,9 +20,9 @@ pnpm vsix           # 构建并打包为 .vsix 扩展安装包
 **数据流：** 用户触发命令 → `extension.ts` 编排流程 → `config.ts` 读取配置 → `gitApi.ts` 通过 VSCode 内置 Git 扩展 API 获取暂存区 diff → `aiProvider.ts` 调用 AI API → 结果写入 Git 输入框。
 
 **核心模块：**
-- `src/extension.ts` — 入口文件，在源代码管理标题栏注册 `generateGitMessage.generate` 命令
+- `src/extension.ts` — 入口文件，在源代码管理标题栏注册 `potatoAiCommit.generate` 命令
 - `src/gitApi.ts` — 封装 VSCode Git 扩展 API（非 shell 命令），获取仓库和 diff
-- `src/config.ts` — 读取 `generateGitMessage.*` 命名空间下的 VSCode 设置
+- `src/config.ts` — 读取 `potatoAiCommit.*` 命名空间下的 VSCode 设置
 - `src/aiProvider.ts` — OpenAI 兼容端点的 HTTP 客户端，使用 Node.js 内置 `fetch`
 - `src/prompt.md` — 默认提示词模板（conventional commits 格式，中文输出）
 - `src/git.d.ts` — VSCode Git 扩展 API 的类型定义
@@ -31,7 +31,7 @@ pnpm vsix           # 构建并打包为 .vsix 扩展安装包
 
 ## 配置项
 
-扩展设置（均以 `generateGitMessage.` 为前缀）：`apiBaseUrl`、`apiKey`、`model`、`prompt`、`maxTokens`。
+扩展设置（均以 `potatoAiCommit.` 为前缀）：`apiBaseUrl`、`apiKey`、`model`、`prompt`、`maxTokens`。
 
 ## 开发约定
 

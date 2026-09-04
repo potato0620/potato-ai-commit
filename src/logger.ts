@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 let channel: vscode.OutputChannel;
 
 export function initOutputChannel(context: vscode.ExtensionContext): void {
-    channel = vscode.window.createOutputChannel('Generate Git Message');
+    channel = vscode.window.createOutputChannel('Potato AI Commit');
     context.subscriptions.push(channel);
 }
 

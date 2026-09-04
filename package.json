@@ -1,108 +1,110 @@
 {
-  "name": "generate-git-message",
-  "displayName": "Generate Git Message",
+  "name": "potato-ai-commit",
+  "displayName": "Potato AI Commit",
   "description": "根据 staged 文件通过 AI 生成提交信息",
   "version": "0.0.2",
-  "publisher": "Satrong",
+  "publisher": "potato",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "SCM Providers"
   ],
-  "icon": "resources/logo.png",
+  "icon": "resources/logo.jpg",
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "generateGitMessage.generate",
+        "command": "potatoAiCommit.generate",
         "title": "生成提交记录",
         "icon": {
           "light": "resources/icon-light.svg",
           "dark": "resources/icon-dark.svg"
-        }
+        },
+        "category": "Potato AI Commit"
       },
       {
-        "command": "generateGitMessage.translate",
+        "command": "potatoAiCommit.translate",
         "title": "翻译提交记录",
         "icon": {
           "light": "resources/icon-translate-light.svg",
           "dark": "resources/icon-translate-dark.svg"
-        }
+        },
+        "category": "Potato AI Commit"
       },
       {
-        "command": "generateGitMessage.setApiKey",
+        "command": "potatoAiCommit.setApiKey",
         "title": "设置 API Key",
-        "category": "Generate Git Message"
+        "category": "Potato AI Commit"
       },
       {
-        "command": "generateGitMessage.deleteApiKey",
+        "command": "potatoAiCommit.deleteApiKey",
         "title": "删除 API Key",
-        "category": "Generate Git Message"
+        "category": "Potato AI Commit"
       },
       {
-        "command": "generateGitMessage.showOutput",
+        "command": "potatoAiCommit.showOutput",
         "title": "查看日志",
-        "category": "Generate Git Message"
+        "category": "Potato AI Commit"
       }
     ],
     "menus": {
       "scm/title": [
         {
-          "command": "generateGitMessage.generate",
+          "command": "potatoAiCommit.generate",
           "when": "scmProvider == git",
           "group": "navigation"
         },
         {
-          "command": "generateGitMessage.translate",
+          "command": "potatoAiCommit.translate",
           "when": "scmProvider == git",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "Generate Git Message",
+      "title": "Potato AI Commit",
       "properties": {
-        "generateGitMessage.apiBaseUrl": {
+        "potatoAiCommit.apiBaseUrl": {
           "type": "string",
           "default": "https://api.openai.com/v1",
           "description": "OpenAI 兼容 API 的基础 URL"
         },
-        "generateGitMessage.model": {
+        "potatoAiCommit.model": {
           "type": "string",
           "default": "gpt-4o-mini",
           "description": "模型名称"
         },
-        "generateGitMessage.prompt": {
+        "potatoAiCommit.prompt": {
           "type": "string",
           "default": "",
           "description": "自定义提示词",
           "editPresentation": "multilineTextEditor"
         },
-        "generateGitMessage.maxTokens": {
+        "potatoAiCommit.maxTokens": {
           "type": "number",
           "default": 0,
           "description": "最大生成 token 数（0 表示不限制）"
         },
-        "generateGitMessage.requestTimeout": {
+        "potatoAiCommit.requestTimeout": {
           "type": "number",
           "default": 120,
           "minimum": 1,
           "maximum": 3600,
           "description": "API 请求超时时间（秒）"
         },
-        "generateGitMessage.extraBody": {
+        "potatoAiCommit.extraBody": {
           "type": "string",
           "default": "",
           "description": "额外的请求体参数（JSON 字符串，会合并到 API 请求体中）",
           "editPresentation": "multilineTextEditor"
         },
-        "generateGitMessage.targetLanguage": {
+        "potatoAiCommit.targetLanguage": {
           "type": "string",
           "default": "English",
           "description": "翻译提交信息的目标语言（如 English、中文）"
         },
-        "generateGitMessage.translatePrompt": {
+        "potatoAiCommit.translatePrompt": {
           "type": "string",
           "default": "",
           "description": "自定义翻译提示词（为空则使用内置模板，可用 {{targetLanguage}} 占位符）",

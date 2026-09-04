@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import defaultPrompt from './prompt.md';
 import defaultTranslatePrompt from './translate-prompt.md';
 
-const SECTION = 'generateGitMessage';
+const SECTION = 'potatoAiCommit';
 const SECRET_KEY = 'apiKey';
 
 export interface Config {
@@ -23,7 +23,7 @@ function parseExtraBody(raw: string): Record<string, unknown> {
     try {
         parsed = JSON.parse(raw);
     } catch {
-        throw new Error('extraBody 不是有效的 JSON，请检查 Generate Git Message 设置');
+        throw new Error('extraBody 不是有效的 JSON，请检查 Potato AI Commit 设置');
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         throw new Error('extraBody 必须是 JSON 对象');
@@ -51,7 +51,7 @@ export async function getApiKey(secrets: vscode.SecretStorage): Promise<string> 
     const stored = await secrets.get(SECRET_KEY);
     if (stored) return stored;
 
-    return process.env.GENERATE_GIT_MESSAGE_API_KEY || '';
+    return process.env.POTATO_AI_COMMIT_API_KEY || '';
 }
 
 export async function setApiKey(secrets: vscode.SecretStorage, key: string): Promise<void> {

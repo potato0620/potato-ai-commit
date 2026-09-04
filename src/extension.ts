@@ -61,7 +61,7 @@ function toFileChanges(indexChanges: readonly import('./git').Change[]): FileCha
 export function activate(context: vscode.ExtensionContext) {
     initOutputChannel(context);
 
-    const generateCmd = registerMessageCommand('generateGitMessage.generate', '生成', async () => {
+    const generateCmd = registerMessageCommand('potatoAiCommit.generate', '生成', async () => {
         log('=== 开始生成 commit message ===');
 
         const config = getConfig(context.secrets);
@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (!config.apiKey) {
             log('错误: 未配置 apiKey');
-            vscode.window.showErrorMessage('请先配置 API Key：运行命令 "Generate Git Message: 设置 API Key"');
+            vscode.window.showErrorMessage('请先配置 API Key：运行命令 "Potato AI Commit: 设置 API Key"');
             return;
         }
 
@@ -122,7 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
     });
 
-    const translateCmd = registerMessageCommand('generateGitMessage.translate', '翻译', async () => {
+    const translateCmd = registerMessageCommand('potatoAiCommit.translate', '翻译', async () => {
         log('=== 开始翻译 commit message ===');
 
         const config = getConfig(context.secrets);
@@ -131,7 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (!config.apiKey) {
             log('错误: 未配置 apiKey');
-            vscode.window.showErrorMessage('请先配置 API Key：运行命令 "Generate Git Message: 设置 API Key"');
+            vscode.window.showErrorMessage('请先配置 API Key：运行命令 "Potato AI Commit: 设置 API Key"');
             return;
         }
 
@@ -171,7 +171,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
     });
 
-    const setKeyCmd = vscode.commands.registerCommand('generateGitMessage.setApiKey', async () => {
+    const setKeyCmd = vscode.commands.registerCommand('potatoAiCommit.setApiKey', async () => {
         const input = await vscode.window.showInputBox({
             prompt: '输入 API Key（将安全存储在系统密钥链中）',
             password: true,
@@ -183,7 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const deleteKeyCmd = vscode.commands.registerCommand('generateGitMessage.deleteApiKey', async () => {
+    const deleteKeyCmd = vscode.commands.registerCommand('potatoAiCommit.deleteApiKey', async () => {
         const current = await getApiKey(context.secrets);
         if (!current) {
             vscode.window.showInformationMessage('当前未存储 API Key');
@@ -200,7 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    const showOutputCmd = vscode.commands.registerCommand('generateGitMessage.showOutput', () => {
+    const showOutputCmd = vscode.commands.registerCommand('potatoAiCommit.showOutput', () => {
         showOutput();
     });
 

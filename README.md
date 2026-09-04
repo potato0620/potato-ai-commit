@@ -1,4 +1,4 @@
-# Generate Git Message
+# Potato AI Commit
 
 一个 VSCode 扩展，利用 OpenAI 兼容 API 根据 Git 暂存区的代码变更自动生成规范的 commit message。
 
@@ -17,31 +17,37 @@
 2. 点击源代码管理标题栏上的 ✨ 图标，或通过命令面板执行 `生成提交记录`
 3. 等待生成完成，commit message 会自动填入输入框
 
+## 从原插件迁移
+
+本扩展的 ID 为 `potato.potato-ai-commit`，使用独立的 `potatoAiCommit.*` 设置与命令。
+安装后请重新设置 API Key，并将原来的 API 地址、模型和自定义参数填写到新扩展设置中。
+如不需要原插件，可以禁用或卸载它，避免源代码管理工具栏出现两组按钮。
+
 ## 配置 API Key
 
 提供两种方式，按优先级依次尝试：
 
-1. **命令设置（推荐）**：在命令面板（`Cmd+Shift+P`）运行 `Generate Git Message: 设置 API Key`，密钥将安全存储在系统密钥链中（macOS Keychain / Windows Credential Manager / Linux libsecret）
-2. **环境变量**：设置 `GENERATE_GIT_MESSAGE_API_KEY` 环境变量
+1. **命令设置（推荐）**：在命令面板（`Cmd+Shift+P`）运行 `Potato AI Commit: 设置 API Key`，密钥将安全存储在系统密钥链中（macOS Keychain / Windows Credential Manager / Linux libsecret）
+2. **环境变量**：设置 `POTATO_AI_COMMIT_API_KEY` 环境变量
 
-可通过命令 `Generate Git Message: 删除 API Key` 移除已存储的密钥。
+可通过命令 `Potato AI Commit: 删除 API Key` 移除已存储的密钥。
 
 ## 配置项
 
-在 VSCode 设置中搜索 `Generate Git Message` 进行配置：
+在 VSCode 设置中搜索 `Potato AI Commit` 进行配置：
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `generateGitMessage.apiBaseUrl` | OpenAI 兼容 API 的基础 URL | `https://api.openai.com/v1` |
-| `generateGitMessage.model` | 模型名称 | `gpt-4o-mini` |
-| `generateGitMessage.prompt` | 自定义提示词（为空则使用内置模板） | （空） |
-| `generateGitMessage.maxTokens` | 最大生成 token 数（0 表示不限制） | `0` |
-| `generateGitMessage.requestTimeout` | API 请求超时时间（秒） | `120` |
-| `generateGitMessage.extraBody` | 额外的请求体参数（JSON 字符串，会合并到 API 请求体中） | （空） |
+| `potatoAiCommit.apiBaseUrl` | OpenAI 兼容 API 的基础 URL | `https://api.openai.com/v1` |
+| `potatoAiCommit.model` | 模型名称 | `gpt-4o-mini` |
+| `potatoAiCommit.prompt` | 自定义提示词（为空则使用内置模板） | （空） |
+| `potatoAiCommit.maxTokens` | 最大生成 token 数（0 表示不限制） | `0` |
+| `potatoAiCommit.requestTimeout` | API 请求超时时间（秒） | `120` |
+| `potatoAiCommit.extraBody` | 额外的请求体参数（JSON 字符串，会合并到 API 请求体中） | （空） |
 
 ## 排查生成失败
 
-生成或翻译失败时会显示错误通知，点击「查看日志」可打开详细输出。也可以在命令面板执行 `Generate Git Message: 查看日志`。
+生成或翻译失败时会显示错误通知，点击「查看日志」可打开详细输出。也可以在命令面板执行 `Potato AI Commit: 查看日志`。
 
 - 超时：检查 API 服务是否可用，较慢的模型可调大 `requestTimeout`。
 - 空响应：检查模型名称和 `maxTokens`；推理模型需要为最终答案保留足够的 token。
@@ -61,4 +67,4 @@ pnpm vsix          # 构建并打包为 .vsix 安装包
 
 ## 许可证
 
-MIT
+MIT。基于 [satrong/vscode-ext-generate-git-message](https://github.com/satrong/vscode-ext-generate-git-message) 修改，保留原项目许可证。
