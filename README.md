@@ -19,7 +19,7 @@
 
 ## 从原插件迁移
 
-本扩展的 ID 为 `potato.potato-ai-commit`，使用独立的 `potatoAiCommit.*` 设置与命令。
+本扩展的 ID 为 `potato0620.potato-ai-commit`，使用独立的 `potatoAiCommit.*` 设置与命令。
 安装后请重新设置 API Key，并将原来的 API 地址、模型和自定义参数填写到新扩展设置中。
 如不需要原插件，可以禁用或卸载它，避免源代码管理工具栏出现两组按钮。
 
