@@ -4,7 +4,7 @@ import type { Config } from './config';
 
 const config: Config = {
     apiBaseUrl: 'https://example.com/v1', apiKey: 'test-key', model: 'test-model',
-    prompt: 'generate', maxTokens: 0, requestTimeout: 1, extraBody: {},
+    prompt: 'generate', maxTokens: 0, requestTimeout: 1, disableThinking: true, extraBody: {},
     targetLanguage: 'English', translatePrompt: 'translate',
 };
 
@@ -71,6 +71,37 @@ describe('generateCommitMessage', () => {
         const body = JSON.parse(fetchMock.mock.calls[0][1].body);
         expect(body.thinking).toEqual({ type: 'enabled' });
         expect(body.reasoning_effort).toBe('low');
+    });
+
+    it('Qwen 混合模型默认关闭思考模式', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'fix: 加快生成' } }],
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        await generateCommitMessage({ ...config, model: 'qwen3.8-flash' }, 'diff', vi.fn());
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body).enable_thinking).toBe(false);
+    });
+
+    it('支持 none 的 OpenAI 模型默认关闭推理', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'fix: 加快生成' } }],
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        await generateCommitMessage({ ...config, model: 'gpt-5.4-mini' }, 'diff', vi.fn());
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body).reasoning_effort).toBe('none');
+    });
+
+    it('关闭全局选项后使用模型默认思考行为', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(Response.json({
+            choices: [{ message: { content: 'feat: 保留模型默认行为' } }],
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        await generateCommitMessage({
+            ...config, model: 'deepseek-v4-flash', disableThinking: false,
+        }, 'diff', vi.fn());
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+        expect(body.thinking).toBeUndefined();
+        expect(body.reasoning_effort).toBeUndefined();
     });
 
     it('HTTP 错误包含状态码和服务端原因', async () => {

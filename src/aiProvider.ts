@@ -53,14 +53,34 @@ function describeApiError(status: number, body: string): string {
 }
 
 function getProviderDefaults(config: Config): Record<string, unknown> {
-    const isDeepSeekV4 = /^deepseek-v4-(?:flash|pro)(?:-|$)/i.test(config.model);
     const hasThinkingSetting = Object.prototype.hasOwnProperty.call(config.extraBody, 'thinking')
-        || Object.prototype.hasOwnProperty.call(config.extraBody, 'reasoning_effort');
+        || Object.prototype.hasOwnProperty.call(config.extraBody, 'reasoning_effort')
+        || Object.prototype.hasOwnProperty.call(config.extraBody, 'enable_thinking')
+        || Object.prototype.hasOwnProperty.call(config.extraBody, 'reasoning');
 
-    // DeepSeek V4 默认使用 high 思考模式。提交信息是短文本任务，默认关闭可显著减少等待。
-    return isDeepSeekV4 && !hasThinkingSetting
-        ? { thinking: { type: 'disabled' } }
-        : {};
+    if (!config.disableThinking || hasThinkingSetting) {
+        return {};
+    }
+
+    const model = config.model.toLowerCase();
+
+    if (/^deepseek-v4-(?:flash|pro)(?:-|$)/.test(model)) {
+        return { thinking: { type: 'disabled' } };
+    }
+
+    if (/^qwen(?:3(?:\.\d+)?|-(?:plus|flash|max))(?:-|$)/.test(model)
+        && !/(?:thinking|qwq)/.test(model)) {
+        return { enable_thinking: false };
+    }
+
+    const supportsNoReasoning = /^gpt-(?:5\.(?:[1-9]\d*)|[6-9])(?:-|$)/.test(model)
+        && !/-pro(?:-|$)/.test(model);
+    if (supportsNoReasoning) {
+        return { reasoning_effort: 'none' };
+    }
+
+    // OpenAI 兼容接口没有统一的思考开关。未知模型不注入参数，避免服务端返回 400。
+    return {};
 }
 
 async function chatCompletion(

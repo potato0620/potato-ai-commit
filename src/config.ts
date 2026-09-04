@@ -12,6 +12,7 @@ export interface Config {
     prompt: string;
     maxTokens: number;
     requestTimeout: number;
+    disableThinking: boolean;
     extraBody: Record<string, unknown>;
     targetLanguage: string;
     translatePrompt: string;
@@ -40,6 +41,7 @@ export function getConfig(secrets: vscode.SecretStorage): Config {
         prompt: cfg.get<string>('prompt', '') || defaultPrompt,
         maxTokens: cfg.get<number>('maxTokens', 0),
         requestTimeout: cfg.get<number>('requestTimeout', 120),
+        disableThinking: cfg.get<boolean>('disableThinking', true),
         extraBody: parseExtraBody(cfg.get<string>('extraBody', '')),
         targetLanguage: cfg.get<string>('targetLanguage', 'English'),
         translatePrompt: cfg.get<string>('translatePrompt', '') || defaultTranslatePrompt,
