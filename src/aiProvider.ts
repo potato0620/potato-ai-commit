@@ -1,6 +1,56 @@
-import { Config } from './config';
+import type { Config } from './config';
 
-const REQUEST_TIMEOUT = 30_000;
+function readTextContent(value: unknown): string {
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (!Array.isArray(value)) {
+        return '';
+    }
+
+    return value
+        .map(part => {
+            if (typeof part === 'string') {
+                return part;
+            }
+            if (part && typeof part === 'object' && 'text' in part) {
+                return typeof part.text === 'string' ? part.text : '';
+            }
+            return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+}
+
+/** 兼容常见的 OpenAI Chat Completions 响应变体。 */
+export function extractMessageContent(data: unknown): string {
+    if (!data || typeof data !== 'object') {
+        return '';
+    }
+
+    const result = data as Record<string, any>;
+    const choice = result.choices?.[0];
+    const content = readTextContent(choice?.message?.content).trim()
+        || readTextContent(choice?.text)
+        || readTextContent(result.output_text);
+
+    return content.replace(/\n*---\s*$/, '').trim();
+}
+
+function describeApiError(status: number, body: string): string {
+    try {
+        const parsed = JSON.parse(body) as Record<string, any>;
+        const detail = parsed?.error?.message || parsed?.message;
+        if (typeof detail === 'string' && detail.trim()) {
+            return `API 请求失败 (${status}): ${detail.trim()}`;
+        }
+    } catch {
+        // 非 JSON 响应会在下方使用原始文本。
+    }
+
+    const detail = body.trim().slice(0, 1_000);
+    return `API 请求失败 (${status})${detail ? `: ${detail}` : ''}`;
+}
 
 async function chatCompletion(
     config: Config,
@@ -11,7 +61,13 @@ async function chatCompletion(
     const url = `${config.apiBaseUrl.replace(/\/+$/, '')}/chat/completions`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(`请求超时 (${REQUEST_TIMEOUT / 1000} s)`), REQUEST_TIMEOUT);
+    const timeoutSeconds = Number.isFinite(config.requestTimeout) && config.requestTimeout > 0
+        ? config.requestTimeout : 120;
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, timeoutSeconds * 1_000);
 
     try {
         log(`请求 API: ${url}`);
@@ -26,6 +82,7 @@ async function chatCompletion(
                 ...config.extraBody,
                 ...(config.maxTokens > 0 ? { max_tokens: config.maxTokens } : {}),
                 model: config.model,
+                stream: false,
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: userContent },
@@ -38,18 +95,26 @@ async function chatCompletion(
 
         if (!response.ok) {
             const text = await response.text();
-            throw new Error(`API request failed (${response.status}): ${text}`);
+            throw new Error(describeApiError(response.status, text));
         }
 
         const data = await response.json();
-        const message = (data as Record<string, any>)?.choices?.[0]?.message;
-
-        const content = message?.content || message?.reasoning_content;
+        const content = extractMessageContent(data);
         if (!content) {
-            throw new Error(`API returned empty response. Response: ${JSON.stringify(data)}`);
+            const responsePreview = JSON.stringify(data).slice(0, 2_000);
+            log(`API 空响应: ${responsePreview}`);
+            throw new Error('API 未返回可用的提交信息，请检查模型或增加 maxTokens，详情见日志');
         }
 
-        return (content as string).replace(/\n*---\s*$/, '').trim();
+        return content;
+    } catch (error) {
+        if (timedOut) {
+            throw new Error(`API 请求超时（${timeoutSeconds} 秒），可在设置中增大 requestTimeout`);
+        }
+        if (error instanceof TypeError) {
+            throw new Error(`无法连接 API：${error.message}`);
+        }
+        throw error;
     } finally {
         clearTimeout(timeoutId);
     }

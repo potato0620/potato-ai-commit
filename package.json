@@ -2,7 +2,7 @@
   "name": "generate-git-message",
   "displayName": "Generate Git Message",
   "description": "根据 staged 文件通过 AI 生成提交信息",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "Satrong",
   "engines": {
     "vscode": "^1.85.0"
@@ -38,6 +38,11 @@
       {
         "command": "generateGitMessage.deleteApiKey",
         "title": "删除 API Key",
+        "category": "Generate Git Message"
+      },
+      {
+        "command": "generateGitMessage.showOutput",
+        "title": "查看日志",
         "category": "Generate Git Message"
       }
     ],
@@ -78,6 +83,13 @@
           "type": "number",
           "default": 0,
           "description": "最大生成 token 数（0 表示不限制）"
+        },
+        "generateGitMessage.requestTimeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "API 请求超时时间（秒）"
         },
         "generateGitMessage.extraBody": {
           "type": "string",

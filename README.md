@@ -36,7 +36,18 @@
 | `generateGitMessage.model` | 模型名称 | `gpt-4o-mini` |
 | `generateGitMessage.prompt` | 自定义提示词（为空则使用内置模板） | （空） |
 | `generateGitMessage.maxTokens` | 最大生成 token 数（0 表示不限制） | `0` |
+| `generateGitMessage.requestTimeout` | API 请求超时时间（秒） | `120` |
 | `generateGitMessage.extraBody` | 额外的请求体参数（JSON 字符串，会合并到 API 请求体中） | （空） |
+
+## 排查生成失败
+
+生成或翻译失败时会显示错误通知，点击「查看日志」可打开详细输出。也可以在命令面板执行 `Generate Git Message: 查看日志`。
+
+- 超时：检查 API 服务是否可用，较慢的模型可调大 `requestTimeout`。
+- 空响应：检查模型名称和 `maxTokens`；推理模型需要为最终答案保留足够的 token。
+- `extraBody`：必须是有效的 JSON 对象。扩展固定使用非流式响应（`stream: false`）。
+
+失败时会保留输入框原有内容；暂存区只有文件变更清单而没有文本 diff 时，也会尝试生成。
 
 ## 开发
 

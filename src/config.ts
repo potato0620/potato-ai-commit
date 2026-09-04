@@ -11,6 +11,7 @@ export interface Config {
     model: string;
     prompt: string;
     maxTokens: number;
+    requestTimeout: number;
     extraBody: Record<string, unknown>;
     targetLanguage: string;
     translatePrompt: string;
@@ -18,12 +19,16 @@ export interface Config {
 
 function parseExtraBody(raw: string): Record<string, unknown> {
     if (!raw.trim()) return {};
+    let parsed: unknown;
     try {
-        const parsed = JSON.parse(raw);
-        return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+        parsed = JSON.parse(raw);
     } catch {
-        return {};
+        throw new Error('extraBody 不是有效的 JSON，请检查 Generate Git Message 设置');
     }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('extraBody 必须是 JSON 对象');
+    }
+    return parsed as Record<string, unknown>;
 }
 
 export function getConfig(secrets: vscode.SecretStorage): Config {
@@ -34,6 +39,7 @@ export function getConfig(secrets: vscode.SecretStorage): Config {
         model: cfg.get<string>('model', 'gpt-4o-mini'),
         prompt: cfg.get<string>('prompt', '') || defaultPrompt,
         maxTokens: cfg.get<number>('maxTokens', 0),
+        requestTimeout: cfg.get<number>('requestTimeout', 120),
         extraBody: parseExtraBody(cfg.get<string>('extraBody', '')),
         targetLanguage: cfg.get<string>('targetLanguage', 'English'),
         translatePrompt: cfg.get<string>('translatePrompt', '') || defaultTranslatePrompt,

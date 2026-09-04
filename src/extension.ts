@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getGitAPI, getRepository } from './gitApi';
 import { getConfig, getApiKey, setApiKey, deleteApiKey } from './config';
 import { generateCommitMessage, translateCommitMessage } from './aiProvider';
-import { initOutputChannel, log } from './logger';
+import { initOutputChannel, log, showOutput } from './logger';
 import { processDiff, FileChange } from './diffProcessor';
 
 // 对应 git.d.ts 中 Status const enum 的值
@@ -20,6 +20,32 @@ const STATUS_MAP: Record<number, FileChange['status']> = {
     [STATUS_INDEX_COPIED]: 'copied',
 };
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+async function reportFailure(action: '生成' | '翻译', error: unknown): Promise<void> {
+    const message = getErrorMessage(error);
+    log(`${action}失败: ${message}`);
+    const selected = await vscode.window.showErrorMessage(
+        `${action} commit message 失败：${message}`,
+        '查看日志'
+    );
+    if (selected === '查看日志') {
+        showOutput();
+    }
+}
+
+function registerMessageCommand(command: string, action: '生成' | '翻译', handler: () => Promise<void>) {
+    return vscode.commands.registerCommand(command, async () => {
+        try {
+            await handler();
+        } catch (error) {
+            await reportFailure(action, error);
+        }
+    });
+}
+
 function toFileChanges(indexChanges: readonly import('./git').Change[]): FileChange[] {
     return indexChanges.map(c => {
         const path = vscode.workspace.asRelativePath(c.uri);
@@ -35,7 +61,7 @@ function toFileChanges(indexChanges: readonly import('./git').Change[]): FileCha
 export function activate(context: vscode.ExtensionContext) {
     initOutputChannel(context);
 
-    const generateCmd = vscode.commands.registerCommand('generateGitMessage.generate', async () => {
+    const generateCmd = registerMessageCommand('generateGitMessage.generate', '生成', async () => {
         log('=== 开始生成 commit message ===');
 
         const config = getConfig(context.secrets);
@@ -76,30 +102,27 @@ export function activate(context: vscode.ExtensionContext) {
                 title: '正在生成 commit message...',
             },
             async () => {
-                try {
-                    const rawDiff = await repo.diff(true);
-                    if (!rawDiff.trim()) {
-                        log('警告: 暂存区 diff 为空');
-                        return;
-                    }
-                    log(`原始 diff 长度: ${rawDiff.length} 字符`);
-
-                    const fileChanges = toFileChanges(repo.state.indexChanges);
-                    const diff = processDiff(rawDiff, fileChanges);
-                    log(`处理后 diff 长度: ${diff.length} 字符`);
-
-                    const message = await generateCommitMessage(config, diff, log);
-                    log(`生成成功: ${message}`);
-                    repo.inputBox.value = message;
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    log(`生成失败: ${msg}`);
+                const rawDiff = await repo.diff(true);
+                const fileChanges = toFileChanges(repo.state.indexChanges);
+                const diff = processDiff(rawDiff, fileChanges);
+                if (!diff.trim()) {
+                    throw new Error('无法读取暂存区变更，请确认文件已暂存后重试');
                 }
+                if (!rawDiff.trim()) {
+                    log('暂存区无文本 diff，将根据文件变更清单生成');
+                } else {
+                    log(`原始 diff 长度: ${rawDiff.length} 字符`);
+                }
+                log(`处理后 diff 长度: ${diff.length} 字符`);
+
+                const message = await generateCommitMessage(config, diff, log);
+                log(`生成成功: ${message}`);
+                repo.inputBox.value = message;
             }
         );
     });
 
-    const translateCmd = vscode.commands.registerCommand('generateGitMessage.translate', async () => {
+    const translateCmd = registerMessageCommand('generateGitMessage.translate', '翻译', async () => {
         log('=== 开始翻译 commit message ===');
 
         const config = getConfig(context.secrets);
@@ -141,14 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
                 title: `正在翻译 commit message（${config.targetLanguage}）...`,
             },
             async () => {
-                try {
-                    const translated = await translateCommitMessage(config, message, log);
-                    log(`翻译成功: ${translated}`);
-                    repo.inputBox.value = translated;
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    log(`翻译失败: ${msg}`);
-                }
+                const translated = await translateCommitMessage(config, message, log);
+                log(`翻译成功: ${translated}`);
+                repo.inputBox.value = translated;
             }
         );
     });
@@ -182,7 +200,11 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    context.subscriptions.push(generateCmd, translateCmd, setKeyCmd, deleteKeyCmd);
+    const showOutputCmd = vscode.commands.registerCommand('generateGitMessage.showOutput', () => {
+        showOutput();
+    });
+
+    context.subscriptions.push(generateCmd, translateCmd, setKeyCmd, deleteKeyCmd, showOutputCmd);
 }
 
 export function deactivate() {}
